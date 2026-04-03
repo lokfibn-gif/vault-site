@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🔐 AES-256 Vault</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0a0e17;--card:#111827;--border:#1f2937;--accent:#00f0ff;--accent2:#7c3aed;--glow:0 0 30px rgba(0,240,255,.15)}
+body{background:var(--bg);color:#e5e7eb;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.bg-grid{position:fixed;inset:0;background-image:linear-gradient(rgba(0,240,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,240,255,.03) 1px,transparent 1px);background-size:40px 40px;z-index:0}
+.container{position:relative;z-index:1;width:90%;max-width:500px;text-align:center}
+.shield{font-size:64px;margin-bottom:10px;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
+h1{font-size:28px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px}
+.subtitle{color:#6b7280;font-size:13px;margin-bottom:30px;letter-spacing:2px}
+.step{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px;margin-bottom:16px;box-shadow:var(--glow);transition:all .4s}
+.step.active{border-color:var(--accent);box-shadow:0 0 40px rgba(0,240,255,.2)}
+.step.locked{opacity:.4;pointer-events:none}
+.step-label{font-size:11px;text-transform:uppercase;letter-spacing:3px;color:var(--accent);margin-bottom:12px}
+input{width:100%;padding:14px 18px;background:#0d1117;border:1px solid #2d3748;border-radius:10px;color:#fff;font-size:16px;outline:none;transition:border .3s}
+input:focus{border-color:var(--accent)}
+button{width:100%;padding:14px;margin-top:14px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:10px;color:#fff;font-size:16px;font-weight:600;cursor:pointer;transition:transform .2s,box-shadow .2s}
+button:hover{transform:translateY(-2px);box-shadow:0 8px 25px rgba(0,240,255,.3)}
+button:active{transform:scale(.97)}
+.reveal{margin-top:20px;padding:20px;background:linear-gradient(135deg,rgba(0,240,255,.08),rgba(124,58,237,.08));border:1px solid var(--accent);border-radius:12px;font-size:20px;font-weight:600;color:var(--accent);display:none;animation:fadeIn .5s}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.status{font-size:12px;color:#6b7280;margin-top:8px}
+.encrypted-data{font-family:'Courier New',monospace;font-size:11px;color:#4b5563;word-break:break-all;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="container">
+  <div class="shield">🛡️</div>
+  <h1>AES-256 Vault</h1>
+  <p class="subtitle">DOUBLE ENCRYPTED • UNBREAKABLE</p>
+
+  <!-- Layer 1: Master Password -->
+  <div class="step active" id="step1">
+    <div class="step-label">Layer 1 — Master Key</div>
+    <input type="password" id="masterInput" placeholder="Enter master password...">
+    <button onclick="unlockLayer1()">🔓 Unlock Layer 1</button>
+    <div class="status" id="status1"></div>
+  </div>
+
+  <!-- Layer 2: Decrypt Message -->
+  <div class="step locked" id="step2">
+    <div class="step-label">Layer 2 — Secret Message</div>
+    <button onclick="decryptMessage()">🔐 Reveal Encrypted Message</button>
+    <div class="status" id="status2"></div>
+  </div>
+
+  <div class="reveal" id="finalReveal"></div>
+
+  <div class="encrypted-data">
+    Stored Ciphertext: 227eaca1f99e58ed503cfe2a8a2ddba31e0de4390d219925037e09a7922c7fe0
+  </div>
+</div>
+
+<script>
+const VAULT = {
+  // AES-256-CBC encrypted password (encrypted with master key)
+  masterSalt: 'm4st3r$4lt#2026!',
+  masterIV: 'd690438a17226677507a17c2119fb294',
+  encryptedPassword: '9c5a1844241f13c8f4758583e5c039eaea171db66a21e18fe881e6428afa4bcb',
+  // AES-256-CBC encrypted message (encrypted with real password)
+  msgSalt: 'm3$$4g3#s4lt@256',
+  msgIV: '6de0ff16d74fb95f3db275c5f86ac542',
+  ciphertext: 'd0246a30018a1268bb8014e5a02bebe7ae47f266e10774e3850a307f3d9c7c5f'
+};
+
+let recoveredKey = null;
+
+async function deriveKey(password, salt) {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  return await crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: enc.encode(salt), iterations: 100000, hash: 'SHA-256' },
+    keyMaterial, { name: 'AES-CBC', length: 256 }, false, ['encrypt', 'decrypt']
+  );
+}
+
+async function decrypt(hexKey, keyObj, ivHex) {
+  const iv = Uint8Array.from(ivHex.match(/.{2}/g).map(b => parseInt(b, 16)));
+  const data = Uint8Array.from(hexKey.match(/.{2}/g).map(b => parseInt(b, 16)));
+  const result = await crypto.subtle.decrypt({ name: 'AES-CBC', iv }, keyObj, data);
+  return new TextDecoder().decode(result);
+}
+
+async function unlockLayer1() {
+  const input = document.getElementById('masterInput').value;
+  const status = document.getElementById('status1');
+  status.textContent = '⏳ Decrypting...';
+
+  try {
+    const key = await deriveKey(input, VAULT.masterSalt);
+    const decrypted = await decrypt(VAULT.encryptedPassword, key, VAULT.masterIV);
+    recoveredKey = decrypted;
+    status.textContent = '✅ Master key verified!';
+    document.getElementById('step1').classList.remove('active');
+    document.getElementById('step1').classList.add('locked');
+    document.getElementById('step2').classList.remove('locked');
+    document.getElementById('step2').classList.add('active');
+  } catch (e) {
+    status.textContent = '❌ Invalid master password!';
+  }
+}
+
+async function decryptMessage() {
+  const status = document.getElementById('status2');
+  status.textContent = '⏳ Decrypting secret...';
+
+  try {
+    const key = await deriveKey(recoveredKey, VAULT.msgSalt);
+    const message = await decrypt(VAULT.ciphertext, key, VAULT.msgIV);
+    const reveal = document.getElementById('finalReveal');
+    reveal.style.display = 'block';
+    reveal.textContent = '💎 ' + message;
+    status.textContent = '✅ Decrypted successfully!';
+    document.getElementById('step2').classList.remove('active');
+    document.getElementById('step2').classList.add('locked');
+  } catch (e) {
+    status.textContent = '❌ Decryption failed!';
+  }
+}
+
+document.getElementById('masterInput').addEventListener('keypress', e => { if(e.key === 'Enter') unlockLayer1(); });
+</script>
+</body>
+</html>
