@@ -80,6 +80,11 @@ button:hover {
   text-align: center;
   display: none;
 }
+#result img {
+  width: 100%;
+  border-radius: 4px;
+  margin-top: 12px;
+}
 </style>
 </head>
 <body>
@@ -99,7 +104,10 @@ button:hover {
     <div class="msg" id="status2"></div>
   </div>
 
-  <div id="result"></div>
+  <div id="result">
+    <div id="resultMsg"></div>
+    <img src="https://files.catbox.moe/iniyjg.jpg" alt="D on the beach">
+  </div>
 </div>
 
 <script>
@@ -153,7 +161,7 @@ async function decryptMessage() {
     const key = await deriveKey(recoveredKey, VAULT.msgSalt);
     const msg = await decrypt(VAULT.ciphertext, key, VAULT.msgIV);
     document.getElementById('result').style.display = 'block';
-    document.getElementById('result').textContent = msg;
+    document.getElementById('resultMsg').textContent = msg;
     s.textContent = '';
     document.getElementById('step2').classList.add('hidden');
   } catch (e) {
