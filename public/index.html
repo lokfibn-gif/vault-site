@@ -73,17 +73,11 @@ button:hover {
 }
 #result {
   margin-top: 16px;
-  padding: 14px;
-  background: #f0f0f0;
-  border-radius: 4px;
-  font-size: 15px;
-  text-align: center;
   display: none;
 }
-#result img {
+#result video {
   width: 100%;
   border-radius: 4px;
-  margin-top: 12px;
 }
 </style>
 </head>
@@ -105,8 +99,9 @@ button:hover {
   </div>
 
   <div id="result">
-    <div id="resultMsg"></div>
-    <img src="https://files.catbox.moe/iniyjg.jpg" alt="D on the beach">
+    <video controls autoplay playsinline>
+      <source src="https://files.catbox.moe/368vw4.mp4" type="video/mp4">
+    </video>
   </div>
 </div>
 
@@ -161,7 +156,6 @@ async function decryptMessage() {
     const key = await deriveKey(recoveredKey, VAULT.msgSalt);
     const msg = await decrypt(VAULT.ciphertext, key, VAULT.msgIV);
     document.getElementById('result').style.display = 'block';
-    document.getElementById('resultMsg').textContent = msg;
     s.textContent = '';
     document.getElementById('step2').classList.add('hidden');
   } catch (e) {
